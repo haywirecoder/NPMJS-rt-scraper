@@ -23,9 +23,7 @@ SOFTWARE.
 function parseRottenTomatoesHTML(fileData) {
     var cheerio = require("cheerio");
     // prep the return object
-    var allTomatoData = { openingThisWeek: [ ]
-                           , boxOffice: [ ]
-                           , comingSoon: [ ] };
+    var allTomatoData = { };
     var errorFlag = true;
     // sanity check that this is rotten tomatoes web html
     if (fileData.indexOf('Rotten Tomatoes') != -1) {
@@ -33,54 +31,40 @@ function parseRottenTomatoesHTML(fileData) {
         errorFlag = false;
         // load the html into the cheerio doc
         var fullDoc = cheerio.load(fileData);
-        // find the stub for movies opening this week
-        var openingThisWeekDoc = cheerio.load(fullDoc('[id="opening-this-week"]').html());        
-        // iterate through movies and strip useful parts, add each to return object
-        openingThisWeekDoc('tr').each(function() {
-            var movieDoc = cheerio.load(openingThisWeekDoc(this).html());
-            var movieMeter = movieDoc('.media-lists__td-rating').text().trim();
-            var movieTitle = movieDoc('.media-lists__td-title').text().trim();
-            var movieDate  = movieDoc('.media-lists__td-date').text().trim();
-            var movieObj = {
-                meter: movieMeter, 
-                title: movieTitle, 
-                date: movieDate
-            };
-            allTomatoData.openingThisWeek[allTomatoData.openingThisWeek.length] = movieObj;
-        });    
-        // find the stub for top box office this week            
-        var topBoxOfficeDoc = cheerio.load(fullDoc('[id="top-box-office"]').html()); 
-        // iterate through movies and strip useful parts, add each to return object        
-        topBoxOfficeDoc('tr').each(function() {
-            var movieDoc = cheerio.load(topBoxOfficeDoc(this).html());
-            var movieMeter = movieDoc('.media-lists__td-rating').text().trim();
-            var movieTitle = movieDoc('.media-lists__td-title').text().trim();
-            var movieGross = movieDoc('.media-lists__td-date').text().trim();
-            var movieObj = {
-                meter: movieMeter, 
-                title: movieTitle, 
-                gross: movieGross
-            };
-            allTomatoData.boxOffice[allTomatoData.boxOffice.length] = movieObj;            
-        });  
-        // find the stub for top movies coming soon
-        var topComingSoonDoc = cheerio.load(fullDoc('[id="coming-soon-theaters"]').html());
-        // iterate through movies and strip useful parts, add each to return object         
-        topComingSoonDoc('tr').each(function() {
-            var movieDoc = cheerio.load(topComingSoonDoc(this).html());
-            var movieMeter = movieDoc('.media-lists__td-rating').text().trim();
-            var movieTitle = movieDoc('.media-lists__td-title').text().trim();
-            var movieDate  = movieDoc('.media-lists__td-date').text().trim();
-            var movieObj = {
-                meter: movieMeter, 
-                title: movieTitle, 
-                date: movieDate
-            };
-            allTomatoData.comingSoon[allTomatoData.comingSoon.length] = movieObj;            
-        });                  
+        allTomatoData.openingThisWeek = populate(fullDoc, 'opening-this-week')
+        allTomatoData.boxOffice = populate(fullDoc, 'top-box-office')
+        allTomatoData.comingSoon = populate(fullDoc, 'coming-soon-theaters')
     }
     // return error flag and the data  
     return {error: errorFlag, data: allTomatoData};
+}
+
+function populate(fullDoc, id) {
+    var cheerio = require("cheerio");
+    var ret = [];
+    var doc = fullDoc('[id="' + id + '"]');
+    if (doc !== null){
+        var body = doc.html();
+        if (body !== null) {
+            var data = cheerio.load(doc.html());        
+            data('tr').each(function() {
+                var movieDoc = cheerio.load(data(this).html());
+                ret[ret.length] = buildMovieObj(movieDoc);
+            });
+        }
+    }
+    return ret;
+}
+
+function buildMovieObj(movieDoc) {
+    var movieMeter = movieDoc('.media-lists__td-rating').text().trim();
+    var movieTitle = movieDoc('.media-lists__td-title').text().trim();
+    var movieDate  = movieDoc('.media-lists__td-date').text().trim();
+    return {
+        meter: movieMeter, 
+        title: movieTitle, 
+        date: movieDate
+    };
 }
 
 // makes a call to get the HTML from the rotten tomatoes front page
